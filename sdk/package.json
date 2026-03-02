@@ -1,0 +1,17 @@
+{
+  "name": "tracelite-middleware",
+  "version": "1.0.0",
+  "description": "Lightweight Express middleware for TraceLite distributed tracing",
+  "main": "traceMiddleware.js",
+  "keywords": [
+    "tracing",
+    "middleware",
+    "express",
+    "observability"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
+

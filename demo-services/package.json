@@ -1,0 +1,15 @@
+{
+  "name": "tracelite-demo-services",
+  "version": "1.0.0",
+  "private": true,
+  "main": "service-a.js",
+  "scripts": {
+    "start:a": "node service-a.js",
+    "start:b": "node service-b.js",
+    "start:c": "node service-c.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
+
