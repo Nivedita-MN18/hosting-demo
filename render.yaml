@@ -1,41 +1,38 @@
-# render.yaml — Render Blueprint for TraceLite
-# Docs: https://render.com/docs/blueprint-spec
-#
-# This deploys:
-#   1. A managed PostgreSQL database
-#   2. The TraceLite API as a Docker Web Service
+# render.yaml — TraceLite Blueprint
+# Generated format: Render Blueprint v1
+version: "1"
+projects:
+- name: TraceLite
+  environments:
+  - name: Production
+    services:
 
-services:
-  # ── Managed PostgreSQL ───────────────────────────────────────────────────────
-  - type: postgres
-    name: tracelite-db
-    plan: free
-    databaseName: tracelite
-    databaseUser: tracelite
+    # ── Managed PostgreSQL ───────────────────────────────────────────────────
+    - type: postgres
+      name: tracelite-db
+      plan: free
+      databaseName: tracelite
+      databaseUser: tracelite
+      region: oregon
 
-  # ── Backend API (Docker) ────────────────────────────────────────────────────
-  - type: web
-    name: tracelite-api
-    runtime: docker
-    # Build context = backend/ subfolder inside the repo root
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
-    plan: free
-    healthCheckPath: /healthz
-
-    envVars:
-      # Render injects DATABASE_URL directly from the linked managed DB
+    # ── TraceLite API (Docker) ───────────────────────────────────────────────
+    - type: web
+      name: hosting-demo
+      runtime: docker
+      repo: https://github.com/Nivedita-MN18/hosting-demo
+      plan: free
+      region: oregon
+      # The Dockerfile lives in backend/ — both context and path must point there
+      dockerContext: ./backend
+      dockerfilePath: ./backend/Dockerfile
+      healthCheckPath: /healthz
+      autoDeployTrigger: commit
+      envVars:
       - key: DATABASE_URL
         fromDatabase:
           name: tracelite-db
           property: connectionString
-
-      # Render auto-generates a random secret — copy from dashboard after deploy
       - key: TRACELITE_API_KEY
         generateValue: true
-
       - key: NODE_ENV
         value: production
-
-      # PORT is injected by Render automatically — do NOT hardcode it here
-      # The server.js already reads: process.env.PORT || 3001
