@@ -1,13 +1,14 @@
-services:
-  # Managed PostgreSQL — type: postgres is only valid in the flat services format
-  - type: postgres
-    name: tracelite-db
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# PostgreSQL must be defined under top-level "databases:", NOT as a service
+
+databases:
+  - name: tracelite-db
     plan: free
     region: oregon
     databaseName: tracelite
-    databaseUser: tracelite
+    user: tracelite
 
-  # TraceLite REST API — Docker build from backend/ subfolder
+services:
   - type: web
     name: hosting-demo
     runtime: docker
@@ -27,3 +28,4 @@ services:
         generateValue: true
       - key: NODE_ENV
         value: production
+
