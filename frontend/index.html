@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TraceLite – Distributed Request Tracing</title>
+  <meta name="description" content="Search and analyze distributed traces across your services" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #08090d;
+      --surface:     #0f1117;
+      --surface2:    #161922;
+      --border:      rgba(255,255,255,0.07);
+      --accent:      #00e5ff;
+      --accent2:     #7c3aed;
+      --danger:      #ff4f81;
+      --warn:        #f59e0b;
+      --ok:          #10b981;
+      --text:        #e2e8f0;
+      --muted:       #64748b;
+      --radius:      12px;
+    }
+
+    html, body { height: 100%; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ---- Header ---- */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      height: 64px;
+      background: rgba(15,17,23,0.9);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1.1rem;
+      letter-spacing: -0.3px;
+    }
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+    .logo span { color: var(--accent); }
+    .badge {
+      font-size: 0.7rem;
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(0,229,255,0.1);
+      color: var(--accent);
+      border: 1px solid rgba(0,229,255,0.2);
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+
+    /* ---- Hero / search ---- */
+    .hero {
+      padding: 4rem 2rem 2rem;
+      text-align: center;
+      background: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(0,229,255,0.07) 0%, transparent 100%);
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3rem);
+      font-weight: 700;
+      letter-spacing: -1px;
+      background: linear-gradient(135deg, #fff 40%, var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.75rem;
+    }
+    .hero p {
+      color: var(--muted);
+      font-size: 1.05rem;
+      max-width: 480px;
+      margin: 0 auto 2.5rem;
+    }
+
+    /* ---- Search box ---- */
+    .search-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      max-width: 760px;
+      margin: 0 auto;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.4);
+    }
+    .search-row {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    input, select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.9rem;
+      padding: 0.65rem 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus, select:focus { border-color: var(--accent); }
+    input::placeholder { color: var(--muted); }
+    #trace-search-input {
+      flex: 1;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+    }
+    .filters {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    .filters select { flex: 1; min-width: 120px; }
+    .filters input[type="number"] { width: 120px; }
+
+    .btn {
+      background: linear-gradient(135deg, var(--accent), #0099bb);
+      color: #000;
+      font-weight: 700;
+      font-size: 0.9rem;
+      border: none;
+      border-radius: 8px;
+      padding: 0.65rem 1.4rem;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+      white-space: nowrap;
+    }
+    .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn-outline {
+      background: transparent;
+      color: var(--accent);
+      border: 1px solid rgba(0,229,255,0.3);
+    }
+    .btn-outline:hover { background: rgba(0,229,255,0.08); }
+
+    /* ---- Main content ---- */
+    main {
+      max-width: 1100px;
+      margin: 2rem auto;
+      padding: 0 2rem;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    .section-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--muted);
+    }
+
+    /* ---- Quick actions ---- */
+    .quick-actions {
+      display: flex;
+      gap: 0.75rem;
+      margin: 1.5rem auto;
+      max-width: 760px;
+      padding: 0 0 1rem;
+      flex-wrap: wrap;
+    }
+    .quick-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 0.4rem 1rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .quick-chip:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ---- Trace table ---- */
+    .results-container {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th {
+      text-align: left;
+      padding: 0.85rem 1.25rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+    }
+    td {
+      padding: 1rem 1.25rem;
+      font-size: 0.88rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    .mono { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; }
+    .trace-id-cell {
+      max-width: 200px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ---- Status badges ---- */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .status-OK    { background: rgba(16,185,129,0.12); color: var(--ok);   border: 1px solid rgba(16,185,129,0.2); }
+    .status-SLOW  { background: rgba(245,158,11,0.12); color: var(--warn); border: 1px solid rgba(245,158,11,0.2); }
+    .status-ERROR { background: rgba(255,79,129,0.12); color: var(--danger); border: 1px solid rgba(255,79,129,0.2); }
+
+    /* ---- Service pills ---- */
+    .service-pills { display: flex; flex-wrap: wrap; gap: 4px; }
+    .service-pill {
+      background: rgba(124,58,237,0.12);
+      color: #a78bfa;
+      border: 1px solid rgba(124,58,237,0.2);
+      border-radius: 12px;
+      padding: 2px 8px;
+      font-size: 0.72rem;
+      font-weight: 500;
+    }
+
+    .view-btn {
+      background: rgba(0,229,255,0.08);
+      color: var(--accent);
+      border: 1px solid rgba(0,229,255,0.2);
+      border-radius: 6px;
+      padding: 5px 14px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+      transition: all 0.2s;
+    }
+    .view-btn:hover { background: rgba(0,229,255,0.15); }
+
+    /* ---- Empty / loading states ---- */
+    .state-block {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--muted);
+    }
+    .state-block .icon { font-size: 3rem; margin-bottom: 1rem; }
+    .state-block p { font-size: 0.95rem; }
+
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 1rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ---- Toast ---- */
+    #toast {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.85rem 1.25rem;
+      font-size: 0.88rem;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+      transform: translateY(200%);
+      transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+      z-index: 999;
+      max-width: 340px;
+    }
+    #toast.show { transform: translateY(0); }
+    #toast.error { border-color: var(--danger); color: var(--danger); }
+
+    /* ---- Summary chips ---- */
+    .summary-strip {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+    .chip {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.5rem 1rem;
+      font-size: 0.82rem;
+    }
+    .chip-label { color: var(--muted); margin-bottom: 2px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; }
+    .chip-value { font-weight: 600; }
+
+    footer {
+      text-align: center;
+      padding: 2rem;
+      color: var(--muted);
+      font-size: 0.8rem;
+      border-top: 1px solid var(--border);
+      margin-top: 4rem;
+    }
+
+    @media (max-width: 640px) {
+      .search-row { flex-direction: column; }
+      .hero { padding: 2rem 1rem 1rem; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">
+      <div class="logo-icon">⚡</div>
+      <span>Trace<span>Lite</span></span>
+    </div>
+    <span class="badge">v1.0</span>
+  </header>
+
+  <div class="hero">
+    <h1>Trace Your Requests</h1>
+    <p>Search spans across all services. Pinpoint exactly where time is being lost.</p>
+
+    <div class="search-card">
+      <div class="search-row">
+        <input
+          type="text"
+          id="trace-search-input"
+          placeholder="Paste a traceId (UUID) or leave empty to list all..."
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button class="btn" id="search-btn" onclick="search()">Search</button>
+      </div>
+      <div class="filters">
+        <select id="filter-service">
+          <option value="">All services</option>
+        </select>
+        <select id="filter-status">
+          <option value="">All statuses</option>
+          <option value="OK">✅ OK</option>
+          <option value="SLOW">🟡 SLOW</option>
+          <option value="ERROR">🔴 ERROR</option>
+        </select>
+        <button class="btn btn-outline" onclick="clearFilters()">Clear</button>
+      </div>
+    </div>
+
+    <div class="quick-actions">
+      <div class="quick-chip" onclick="filterByStatus('ERROR')">🔴 Show errors</div>
+      <div class="quick-chip" onclick="filterByStatus('SLOW')">🟡 Show slow</div>
+      <div class="quick-chip" onclick="search()">📋 List all</div>
+    </div>
+  </div>
+
+  <main>
+    <div id="results"></div>
+  </main>
+
+  <footer>
+    TraceLite · Lightweight Distributed Request Tracing · Built for developers
+  </footer>
+
+  <div id="toast"></div>
+
+  <script src="config.js"></script>
+  <script>
+    const cfg = window.TRACELITE_CONFIG;
+
+    function apiHeaders() {
+      return {
+        "Content-Type": "application/json",
+        "X-Api-Key": cfg.API_KEY,
+      };
+    }
+
+    function showToast(msg, isError = false) {
+      const t = document.getElementById("toast");
+      t.textContent = msg;
+      t.className = isError ? "show error" : "show";
+      clearTimeout(t._timer);
+      t._timer = setTimeout(() => { t.className = ""; }, 3500);
+    }
+
+    function filterByStatus(status) {
+      document.getElementById("filter-status").value = status;
+      search();
+    }
+
+    function clearFilters() {
+      document.getElementById("trace-search-input").value = "";
+      document.getElementById("filter-service").value = "";
+      document.getElementById("filter-status").value = "";
+      document.getElementById("results").innerHTML = renderEmpty("Enter a traceId or click Search to list all traces.");
+    }
+
+    function renderEmpty(msg) {
+      return `<div class="state-block"><div class="icon">🔍</div><p>${msg}</p></div>`;
+    }
+
+    function renderLoading() {
+      return `<div class="state-block"><div class="spinner"></div><p>Searching spans...</p></div>`;
+    }
+
+    function renderError(msg) {
+      return `<div class="state-block"><div class="icon">⚠️</div><p style="color:var(--danger)">${msg}</p></div>`;
+    }
+
+    function statusBadge(status) {
+      const icons = { OK: "●", SLOW: "◑", ERROR: "✕" };
+      return `<span class="status-badge status-${status}">${icons[status] || "●"} ${status}</span>`;
+    }
+
+    function formatMs(ms) {
+      if (ms >= 1000) return `${(ms/1000).toFixed(2)}s`;
+      return `${ms}ms`;
+    }
+
+    async function search() {
+      const traceId = document.getElementById("trace-search-input").value.trim();
+      const service = document.getElementById("filter-service").value;
+      const status  = document.getElementById("filter-status").value;
+      const el = document.getElementById("results");
+
+      el.innerHTML = renderLoading();
+
+      try {
+        // If they typed something that looks like a UUID, go directly to trace detail API
+        const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (traceId && uuidRe.test(traceId)) {
+          const res = await fetch(`${cfg.API_URL}/api/v1/traces/${traceId}`, { headers: apiHeaders() });
+          if (res.status === 404) {
+            el.innerHTML = renderError(`No trace found for ID: ${traceId}`);
+            return;
+          }
+          if (!res.ok) throw new Error(`API error: ${res.status}`);
+          const data = await res.json();
+          renderSingleTraceRow(el, data);
+          return;
+        }
+
+        // Otherwise use list endpoint with filters
+        const params = new URLSearchParams();
+        if (service) params.set("service", service);
+        if (status)  params.set("status",  status);
+        params.set("limit", "50");
+
+        const res = await fetch(`${cfg.API_URL}/api/v1/traces?${params}`, { headers: apiHeaders() });
+        if (!res.ok) throw new Error(`API error: ${res.status}`);
+        const data = await res.json();
+
+        if (!data.traces || data.traces.length === 0) {
+          el.innerHTML = renderEmpty("No traces found for your query.");
+          return;
+        }
+
+        renderTraceTable(el, data.traces);
+
+        // Populate service filter from results
+        const services = new Set(data.traces.flatMap(t => t.services || []));
+        const sel = document.getElementById("filter-service");
+        const existing = new Set([...sel.options].map(o => o.value));
+        services.forEach(s => {
+          if (!existing.has(s)) {
+            const o = document.createElement("option");
+            o.value = o.textContent = s;
+            sel.appendChild(o);
+          }
+        });
+
+      } catch (err) {
+        el.innerHTML = renderError(`Failed to fetch traces: ${err.message}. Is the backend running?`);
+        showToast(err.message, true);
+      }
+    }
+
+    function renderSingleTraceRow(el, trace) {
+      const worstStatus = trace.spans.some(s => s.status === "ERROR") ? "ERROR"
+                        : trace.spans.some(s => s.status === "SLOW")  ? "SLOW"
+                        : "OK";
+      const services = [...new Set(trace.spans.map(s => s.service))];
+      renderTraceTable(el, [{
+        traceId: trace.traceId,
+        services,
+        spanCount: trace.spanCount,
+        totalDurationMs: trace.totalDurationMs,
+        worstStatus,
+        startedAt: trace.spans[0]?.timestamp,
+      }]);
+    }
+
+    function renderTraceTable(el, traces) {
+      const rows = traces.map(t => {
+        const pills = (t.services || []).map(s => `<span class="service-pill">${s}</span>`).join("");
+        const ts = t.startedAt ? new Date(t.startedAt * 1000).toLocaleString() : "—";
+        return `
+          <tr>
+            <td><span class="mono trace-id-cell" title="${t.traceId}">${t.traceId}</span></td>
+            <td><div class="service-pills">${pills || "—"}</div></td>
+            <td>${formatMs(Number(t.totalDurationMs) || 0)}</td>
+            <td>${t.spanCount}</td>
+            <td>${statusBadge(t.worstStatus || "OK")}</td>
+            <td><small style="color:var(--muted)">${ts}</small></td>
+            <td><a class="view-btn" href="trace.html?traceId=${t.traceId}">View →</a></td>
+          </tr>`;
+      }).join("");
+
+      el.innerHTML = `
+        <div class="section-header">
+          <span class="section-title">${traces.length} trace${traces.length !== 1 ? "s" : ""} found</span>
+        </div>
+        <div class="results-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Trace ID</th>
+                <th>Services</th>
+                <th>Total Duration</th>
+                <th>Spans</th>
+                <th>Status</th>
+                <th>Started</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    }
+
+    // Kick off with a full listing on page load
+    window.addEventListener("DOMContentLoaded", search);
+
+    // Allow Enter key in search box
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("trace-search-input")
+        .addEventListener("keydown", e => { if (e.key === "Enter") search(); });
+    });
+  </script>
+</body>
+</html>

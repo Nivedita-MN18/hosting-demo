@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tracelite
+      POSTGRES_USER: tracelite
+      POSTGRES_PASSWORD: tracelite
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tracelite -d tracelite"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://tracelite:tracelite@postgres:5432/tracelite
+      TRACELITE_API_KEY: dev-secret-key
+      PORT: 3001
+      NODE_ENV: development
+    ports:
+      - "3001:3001"
+
+volumes:
+  pgdata:

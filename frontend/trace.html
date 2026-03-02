@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trace Detail – TraceLite</title>
+    <meta name="description" content="Waterfall timeline showing request spans across services" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet" />
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #08090d;
+            --surface: #0f1117;
+            --surface2: #161922;
+            --border: rgba(255, 255, 255, 0.07);
+            --accent: #00e5ff;
+            --accent2: #7c3aed;
+            --danger: #ff4f81;
+            --warn: #f59e0b;
+            --ok: #10b981;
+            --text: #e2e8f0;
+            --muted: #64748b;
+            --radius: 12px;
+        }
+
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* ---- Header ---- */
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 2rem;
+            height: 64px;
+            background: rgba(15, 17, 23, 0.9);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .logo span {
+            color: var(--accent);
+        }
+
+        .back-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 0.85rem;
+            padding: 0.5rem 1rem;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .back-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* ---- Breadcrumb ---- */
+        .breadcrumb {
+            padding: 1.5rem 2rem 0;
+            max-width: 1200px;
+            margin: 0 auto;
+            font-size: 0.82rem;
+            color: var(--muted);
+        }
+
+        .breadcrumb span {
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* ---- Main ---- */
+        main {
+            max-width: 1200px;
+            margin: 1.5rem auto;
+            padding: 0 2rem 4rem;
+        }
+
+        /* ---- Summary strip ---- */
+        .summary-strip {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-bottom: 1.75rem;
+        }
+
+        .chip {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0.6rem 1.1rem;
+            flex: 1;
+            min-width: 130px;
+        }
+
+        .chip-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+
+        .chip-value {
+            font-size: 1.15rem;
+            font-weight: 700;
+        }
+
+        .chip-value.danger {
+            color: var(--danger);
+        }
+
+        .chip-value.warn {
+            color: var(--warn);
+        }
+
+        .chip-value.ok {
+            color: var(--ok);
+        }
+
+        .chip-value.accent {
+            color: var(--accent);
+        }
+
+        /* ---- Section title ---- */
+        .section-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--muted);
+            margin-bottom: 0.75rem;
+        }
+
+        /* ---- Waterfall container ---- */
+        .waterfall-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+
+        .waterfall-header {
+            display: grid;
+            grid-template-columns: 260px 1fr 90px;
+            gap: 0;
+            padding: 0.75rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .waterfall-header span {
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--muted);
+        }
+
+        .waterfall-row {
+            display: grid;
+            grid-template-columns: 260px 1fr 90px;
+            gap: 0;
+            padding: 0.85rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            align-items: center;
+            transition: background 0.15s;
+        }
+
+        .waterfall-row:last-child {
+            border-bottom: none;
+        }
+
+        .waterfall-row:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .waterfall-row.is-bottleneck {
+            background: rgba(255, 79, 129, 0.04);
+        }
+
+        /* Service + span label */
+        .span-label {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            padding-right: 1rem;
+            min-width: 0;
+        }
+
+        .span-service {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.78rem;
+            color: var(--muted);
+        }
+
+        .service-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .span-name {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Waterfall bar track */
+        .bar-track {
+            position: relative;
+            height: 28px;
+            display: flex;
+            align-items: center;
+        }
+
+        .bar-bg {
+            position: absolute;
+            inset: 0;
+            border-radius: 4px;
+            /* Subtle lane stripe */
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .bar {
+            position: absolute;
+            height: 20px;
+            border-radius: 5px;
+            top: 4px;
+            min-width: 4px;
+            display: flex;
+            align-items: center;
+            padding: 0 6px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            transition: opacity 0.2s;
+        }
+
+        .bar:hover {
+            opacity: 0.85;
+        }
+
+        .bar.ok {
+            background: linear-gradient(90deg, #059669, #10b981);
+            color: #d1fae5;
+        }
+
+        .bar.slow {
+            background: linear-gradient(90deg, #d97706, #f59e0b);
+            color: #fef3c7;
+        }
+
+        .bar.error {
+            background: linear-gradient(90deg, #be123c, #ff4f81);
+            color: #ffe4e6;
+        }
+
+        /* Bottleneck bar has pulse glow */
+        .bar.bottleneck {
+            box-shadow: 0 0 12px rgba(255, 79, 129, 0.5);
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+
+            0%,
+            100% {
+                box-shadow: 0 0 8px rgba(255, 79, 129, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 0 20px rgba(255, 79, 129, 0.8);
+            }
+        }
+
+        /* Duration column */
+        .span-duration {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .bottleneck-tag {
+            display: inline-block;
+            font-size: 0.65rem;
+            font-family: 'Inter', sans-serif;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: rgba(255, 79, 129, 0.15);
+            color: var(--danger);
+            border: 1px solid rgba(255, 79, 129, 0.3);
+            border-radius: 4px;
+            padding: 1px 5px;
+            margin-left: 4px;
+        }
+
+        /* ---- Timeline ruler ---- */
+        .ruler {
+            position: relative;
+            height: 24px;
+            display: flex;
+            align-items: flex-end;
+            padding: 0 1.25rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .ruler-inner {
+            position: relative;
+            flex: 1;
+            height: 100%;
+        }
+
+        .ruler-mark {
+            position: absolute;
+            bottom: 0;
+            font-size: 0.65rem;
+            color: var(--muted);
+            transform: translateX(-50%);
+            white-space: nowrap;
+        }
+
+        .ruler-tick {
+            position: absolute;
+            bottom: 0;
+            width: 1px;
+            height: 6px;
+            background: var(--border);
+            transform: translateX(-50%);
+        }
+
+        /* ---- Per-service breakdown ---- */
+        .breakdown-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 2rem;
+        }
+
+        .breakdown-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+        }
+
+        .breakdown-card .label {
+            font-size: 0.78rem;
+            color: var(--muted);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .breakdown-card .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .breakdown-bar {
+            height: 4px;
+            border-radius: 2px;
+            margin-top: 0.6rem;
+            background: var(--surface2);
+            overflow: hidden;
+        }
+
+        .breakdown-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.8s ease;
+        }
+
+        /* ---- Status badge ---- */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .status-OK {
+            background: rgba(16, 185, 129, 0.12);
+            color: var(--ok);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .status-SLOW {
+            background: rgba(245, 158, 11, 0.12);
+            color: var(--warn);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+
+        .status-ERROR {
+            background: rgba(255, 79, 129, 0.12);
+            color: var(--danger);
+            border: 1px solid rgba(255, 79, 129, 0.2);
+        }
+
+        /* ---- Loading / error states ---- */
+        .state-block {
+            text-align: center;
+            padding: 5rem 2rem;
+            color: var(--muted);
+        }
+
+        .state-block .icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 1.5rem;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--muted);
+            font-size: 0.8rem;
+            border-top: 1px solid var(--border);
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="logo">
+            <div class="logo-icon">⚡</div>
+            <span>Trace<span>Lite</span></span>
+        </div>
+        <a class="back-btn" href="index.html">← Back to Search</a>
+    </header>
+
+    <div class="breadcrumb">
+        Trace detail &nbsp;/&nbsp; <span id="traceid-display">…</span>
+    </div>
+
+    <main id="main-content">
+        <div class="state-block">
+            <div class="spinner"></div>
+            <p>Loading trace…</p>
+        </div>
+    </main>
+
+    <footer>TraceLite · Waterfall Timeline</footer>
+
+    <script src="config.js"></script>
+    <script>
+        (() => {
+            const cfg = window.TRACELITE_CONFIG;
+
+            // Service → colour palette (deterministic by index)
+            const PALETTE = [
+                "#00e5ff", "#7c3aed", "#10b981", "#f59e0b",
+                "#06b6d4", "#8b5cf6", "#34d399", "#fbbf24",
+            ];
+            const serviceColorMap = new Map();
+            function colorForService(svc) {
+                if (!serviceColorMap.has(svc)) {
+                    serviceColorMap.set(svc, PALETTE[serviceColorMap.size % PALETTE.length]);
+                }
+                return serviceColorMap.get(svc);
+            }
+
+            function formatMs(ms) {
+                if (ms >= 1000) return `${(ms / 1000).toFixed(2)}s`;
+                return `${ms}ms`;
+            }
+
+            function statusBadge(s) {
+                const icons = { OK: "●", SLOW: "◑", ERROR: "✕" };
+                return `<span class="status-badge status-${s}">${icons[s] || "●"} ${s}</span>`;
+            }
+
+            const params = new URLSearchParams(window.location.search);
+            const traceId = params.get("traceId") || "";
+            document.getElementById("traceid-display").textContent = traceId || "unknown";
+            document.title = `${traceId.slice(0, 8)}… – TraceLite`;
+
+            if (!traceId) {
+                document.getElementById("main-content").innerHTML =
+                    `<div class="state-block"><div class="icon">⚠️</div>
+        <p style="color:var(--danger)">No traceId in URL. <a href="index.html" style="color:var(--accent)">Go back</a>.</p></div>`;
+                return;
+            }
+
+            async function load() {
+                const res = await fetch(`${cfg.API_URL}/api/v1/traces/${traceId}`, {
+                    headers: { "X-Api-Key": cfg.API_KEY },
+                });
+                if (!res.ok) {
+                    const status = res.status;
+                    document.getElementById("main-content").innerHTML =
+                        `<div class="state-block"><div class="icon">${status === 404 ? "🔍" : "⚠️"}</div>
+          <p style="color:var(--danger)">${status === 404 ? "Trace not found." : `API error: ${status}`}</p></div>`;
+                    return;
+                }
+                const data = await res.json();
+                render(data);
+            }
+
+            function render(data) {
+                const { spans, spanCount, totalDurationMs, slowestSpan, services } = data;
+
+                // Determine timeline bounds
+                const minTs = Math.min(...spans.map(s => s.timestamp));
+                const maxTs = Math.max(...spans.map(s => s.timestamp));
+                // Total window = time from first span start to last span end (approx)
+                const timelineMs = Math.max(
+                    spans.reduce((max, s) => Math.max(max, (s.timestamp - minTs) * 1000 + s.durationMs), 0),
+                    1
+                );
+
+                // Find bottleneck span (slowest)
+                const bottleneckIdx = spans.reduce(
+                    (bi, s, i) => (s.durationMs > spans[bi].durationMs ? i : bi), 0
+                );
+
+                // ---- Summary chips ----
+                const worstStatus = spans.some(s => s.status === "ERROR") ? "ERROR"
+                    : spans.some(s => s.status === "SLOW") ? "SLOW"
+                        : "OK";
+                const worstClasses = { OK: "ok", SLOW: "warn", ERROR: "danger" };
+                const summaryHtml = `
+        <div class="summary-strip">
+          <div class="chip">
+            <div class="chip-label">Total Duration</div>
+            <div class="chip-value ${worstClasses[worstStatus]}">${formatMs(totalDurationMs)}</div>
+          </div>
+          <div class="chip">
+            <div class="chip-label">Spans</div>
+            <div class="chip-value accent">${spanCount}</div>
+          </div>
+          <div class="chip">
+            <div class="chip-label">Services</div>
+            <div class="chip-value accent">${(services || []).length}</div>
+          </div>
+          <div class="chip">
+            <div class="chip-label">Bottleneck</div>
+            <div class="chip-value danger">${slowestSpan.service} / ${slowestSpan.span}</div>
+          </div>
+          <div class="chip">
+            <div class="chip-label">Status</div>
+            <div class="chip-value">${statusBadge(worstStatus)}</div>
+          </div>
+        </div>`;
+
+                // ---- Ruler ticks ----
+                const tickCount = 5;
+                let rulerHtml = `<div class="ruler"><div style="width:260px;flex-shrink:0"></div><div class="ruler-inner">`;
+                for (let i = 0; i <= tickCount; i++) {
+                    const pct = (i / tickCount) * 100;
+                    const label = formatMs(Math.round((timelineMs * pct) / 100));
+                    rulerHtml += `<div class="ruler-tick" style="left:${pct}%"></div>
+                      <div class="ruler-mark" style="left:${pct}%">${label}</div>`;
+                }
+                rulerHtml += `</div><div style="width:90px;flex-shrink:0"></div></div>`;
+
+                // ---- Waterfall rows ----
+                const rowsHtml = spans.map((span, i) => {
+                    const isBottleneck = i === bottleneckIdx;
+                    const offsetMs = (span.timestamp - minTs) * 1000;
+                    const leftPct = (offsetMs / timelineMs) * 100;
+                    const widthPct = Math.max((span.durationMs / timelineMs) * 100, 0.3);
+                    const barClass = isBottleneck ? `bar ${span.status.toLowerCase()} bottleneck`
+                        : `bar ${span.status.toLowerCase()}`;
+                    const color = colorForService(span.service);
+                    const durationLabel = span.durationMs > 18 ? formatMs(span.durationMs) : "";
+                    const btTag = isBottleneck ? `<span class="bottleneck-tag">🔴 BOTTLENECK</span>` : "";
+
+                    return `
+          <div class="waterfall-row ${isBottleneck ? "is-bottleneck" : ""}">
+            <div class="span-label">
+              <div class="span-service">
+                <div class="service-dot" style="background:${color}"></div>
+                ${span.service}
+              </div>
+              <div class="span-name">${span.span}</div>
+            </div>
+            <div class="bar-track">
+              <div class="bar-bg"></div>
+              <div
+                class="${barClass}"
+                style="left:${leftPct.toFixed(2)}%;width:${widthPct.toFixed(2)}%"
+                title="${span.service} / ${span.span}: ${formatMs(span.durationMs)} [${span.status}]"
+              >${durationLabel}</div>
+            </div>
+            <div class="span-duration">
+              ${formatMs(span.durationMs)}${btTag}
+            </div>
+          </div>`;
+                }).join("");
+
+                // ---- Per-service breakdown ----
+                const serviceMap = new Map();
+                spans.forEach(s => {
+                    if (!serviceMap.has(s.service)) serviceMap.set(s.service, { total: 0, spans: 0 });
+                    const e = serviceMap.get(s.service);
+                    e.total += s.durationMs;
+                    e.spans++;
+                });
+                const maxSvcMs = Math.max(...[...serviceMap.values()].map(v => v.total));
+
+                const breakdownHtml = [...serviceMap.entries()].map(([svc, stats]) => {
+                    const color = colorForService(svc);
+                    const pct = ((stats.total / maxSvcMs) * 100).toFixed(1);
+                    return `
+          <div class="breakdown-card">
+            <div class="label">
+              <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></div>
+              ${svc}
+            </div>
+            <div class="value" style="color:${color}">${formatMs(stats.total)}</div>
+            <div style="font-size:0.78rem;color:var(--muted);margin-top:2px">${stats.spans} span${stats.spans !== 1 ? "s" : ""}</div>
+            <div class="breakdown-bar">
+              <div class="breakdown-bar-fill" style="width:${pct}%;background:${color}"></div>
+            </div>
+          </div>`;
+                }).join("");
+
+                document.getElementById("main-content").innerHTML = `
+        ${summaryHtml}
+
+        <div class="section-title">Waterfall Timeline</div>
+        <div class="waterfall-card">
+          ${rulerHtml}
+          <div class="waterfall-header">
+            <span>Service / Span</span>
+            <span>Timeline (${formatMs(timelineMs)} window)</span>
+            <span style="text-align:right">Duration</span>
+          </div>
+          ${rowsHtml}
+        </div>
+
+        <div class="section-title">Per-Service Breakdown</div>
+        <div class="breakdown-grid">${breakdownHtml}</div>
+      `;
+            }
+
+            load().catch(err => {
+                document.getElementById("main-content").innerHTML =
+                    `<div class="state-block"><div class="icon">⚠️</div>
+        <p style="color:var(--danger)">Failed to load trace: ${err.message}</p></div>`;
+            });
+        })();
+    </script>
+</body>
+
+</html>

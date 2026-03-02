@@ -1,0 +1,27 @@
+# Dependencies — never commit these
+node_modules/
+.npm
+
+# Environment secrets — never commit
+.env
+.env.local
+.env.*.local
+# Keep example files (they have no secrets)
+!.env.example
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store
+*.swp
+
+# Logs
+npm-debug.log*
+*.log
+
+# Build artifacts
+dist/
+build/
+
+# package-lock.json IS committed (ensures reproducible Render builds)
+# package-lock.json  ← intentionally NOT in this gitignore

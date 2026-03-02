@@ -1,0 +1,15 @@
+node_modules
+npm-debug.log*
+
+# Never bake secrets into the image — inject via platform env vars (Render dashboard)
+.env
+.env.local
+.env.*.local
+
+# Keep .env.example (it has no secrets, documents expected vars)
+!.env.example
+
+test/
+*.md
+.git
+.gitignore

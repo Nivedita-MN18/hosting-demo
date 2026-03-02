@@ -1,0 +1,18 @@
+{
+    "name": "tracelite-demo",
+    "version": "1.0.0",
+    "description": "Demo microservices for TraceLite end-to-end demonstration",
+    "scripts": {
+        "start:a": "PORT=4001 node service-a/index.js",
+        "start:b": "PORT=4002 node service-b/index.js",
+        "start:c": "PORT=4003 node service-c/index.js",
+        "seed": "node seed.js",
+        "demo": "concurrently \"npm run start:a\" \"npm run start:b\" \"npm run start:c\""
+    },
+    "dependencies": {
+        "express": "^4.18.3"
+    },
+    "devDependencies": {
+        "concurrently": "^8.2.2"
+    }
+}
